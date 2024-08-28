@@ -1,4 +1,4 @@
-#include <bits/stdc++.h>
+#include <iostream>
 #include <vector>
 #include <queue>
 #include <unordered_set>
@@ -45,13 +45,14 @@ public:
         }
     }
 
-    // Nayi song ko add karna
+    // Naye song ko add karna
     void addNewSong(const string &song)
     {
         if (songIndexMap.size() >= n)
         {
             throw overflow_error("Cannot add more than n songs");
         }
+
         songQueue.push(song);
         allSongs.push_back(song);
         songIndexMap[song] = allSongs.size() - 1; // Update song index
@@ -203,13 +204,42 @@ void displayMenu()
     cout << "Enter your choice: ";
 }
 
+bool isValidInput(int &input)
+{
+    if (cin.fail() || input < 0)
+    {
+        cin.clear();
+        cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Ignore invalid input
+        return false;
+    }
+    return true;
+}
+
+int getValidatedInput(const string &prompt)
+{
+    int input;
+    while (true)
+    {
+        cout << prompt;
+        cin >> input;
+        if (isValidInput(input))
+        {
+            break;
+        }
+        else
+        {
+            cerr << "Invalid input. Please enter a non-negative integer within the range." << endl;
+        }
+    }
+    return input;
+}
+
 int main()
 {
     int n, k;
-    cout << "Enter the number of songs (n): ";
-    cin >> n;
-    cout << "Enter the repeat interval (k): ";
-    cin >> k;
+
+    n = getValidatedInput("Enter the number of songs (n): ");
+    k = getValidatedInput("Enter the repeat interval (k): ");
 
     if (k >= n)
     {
@@ -220,7 +250,7 @@ int main()
     vector<string> songs;
     string song;
     cout << "Enter the song names (press Enter after each song):" << endl;
-    cin.ignore(); // Previous input ka newline ignore karna
+    cin.ignore(); // Ignore previous newline from integer input
     for (int i = 0; i < n; ++i)
     {
         if (!getline(cin, song) || song.empty())
@@ -246,8 +276,7 @@ int main()
     do
     {
         displayMenu();
-        cin >> choice;
-        cin.ignore(); // Previous input ka newline ignore karna
+        choice = getValidatedInput(""); // No prompt needed here since displayMenu() does that
 
         switch (choice)
         {
@@ -280,6 +309,7 @@ int main()
         case 3:
         {
             string songToRemove;
+            cin.ignore(); // Ignore leftover newline character from previous input
             cout << "Enter the name of the song to remove: ";
             getline(cin, songToRemove);
             try
