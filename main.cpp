@@ -7,7 +7,7 @@
 #include <unordered_map>
 #include <algorithm>
 #include <fstream>
-#include <ctime>
+#include <random>
 
 using namespace std;
 
@@ -48,7 +48,12 @@ public:
     // Naye song ko add karna
     void addNewSong(const string &song)
     {
-        if (songIndexMap.size() >= n)
+        if (song.empty())
+        {
+            throw invalid_argument("Song name cannot be empty");
+        }
+
+        if (allSongs.size() >= n)
         {
             throw overflow_error("Cannot add more than n songs");
         }
@@ -56,26 +61,36 @@ public:
         songQueue.push(song);
         allSongs.push_back(song);
         songIndexMap[song] = allSongs.size() - 1; // Update song index
+        n = allSongs.size();                      // Dynamically update the number of songs
     }
 
     // Song ko remove karna
     void removeSong(const string &song)
     {
+        if (song.empty())
+        {
+            throw invalid_argument("Song name cannot be empty");
+        }
+
         auto it = songIndexMap.find(song);
         if (it != songIndexMap.end())
         {
-            // Update allSongs and queue
             int index = it->second;
             allSongs.erase(allSongs.begin() + index);
             songIndexMap.erase(it);
 
-            // Rebuild the songQueue from the remaining songs
             queue<string> tempQueue;
             for (const auto &s : allSongs)
             {
                 tempQueue.push(s);
             }
             songQueue = tempQueue;
+
+            // Update songIndexMap
+            for (int i = 0; i < allSongs.size(); ++i)
+            {
+                songIndexMap[allSongs[i]] = i;
+            }
         }
         else
         {
@@ -93,8 +108,9 @@ public:
 
         string nextSong;
         unordered_set<string> recentSet(recentSongs.begin(), recentSongs.end());
+        int attempts = songQueue.size(); // Limit attempts to avoid infinite loop
 
-        while (!songQueue.empty())
+        while (!songQueue.empty() && attempts--)
         {
             nextSong = songQueue.front();
             songQueue.pop();
@@ -108,9 +124,14 @@ public:
             }
         }
 
+        if (recentSet.find(nextSong) != recentSet.end())
+        {
+            throw runtime_error("All songs have been played recently. Try shuffling the playlist.");
+        }
+
         if (recentSongs.size() == k)
         {
-            recentSongs.pop_front(); // Remove old song if limit reached
+            recentSongs.pop_front();
         }
         recentSongs.push_back(nextSong);
 
@@ -120,16 +141,16 @@ public:
     // Playlist ko shuffle karna
     void shufflePlaylist()
     {
-        srand(time(0)); // Random seed set karna
-        random_shuffle(allSongs.begin(), allSongs.end());
-        while (!songQueue.empty())
-        {
-            songQueue.pop();
-        }
+        random_device rd;  // Obtain a random number from hardware
+        mt19937 eng(rd()); // Seed the generator
+        shuffle(allSongs.begin(), allSongs.end(), eng);
+
+        queue<string> tempQueue;
         for (const auto &song : allSongs)
         {
-            songQueue.push(song);
+            tempQueue.push(song);
         }
+        songQueue = tempQueue;
     }
 
     // Playlist ko file mein save karna
@@ -241,9 +262,9 @@ int main()
     n = getValidatedInput("Enter the number of songs (n): ");
     k = getValidatedInput("Enter the repeat interval (k): ");
 
-    if (k >= n)
+    if (k >= n || k <= 0)
     {
-        cerr << "k should be less than n" << endl;
+        cerr << "Error: k should be between 1 and n-1" << endl;
         return 1;
     }
 
@@ -253,9 +274,11 @@ int main()
     cin.ignore(); // Ignore previous newline from integer input
     for (int i = 0; i < n; ++i)
     {
-        if (!getline(cin, song) || song.empty())
+        cout << "Song " << i + 1 << ": ";
+        getline(cin, song);
+        if (song.empty())
         {
-            cerr << "Error: Number of songs provided does not match n" << endl;
+            cerr << "Error: Song name cannot be empty" << endl;
             return 1;
         }
         songs.push_back(song);
@@ -277,6 +300,7 @@ int main()
     {
         displayMenu();
         choice = getValidatedInput(""); // No prompt needed here since displayMenu() does that
+        cin.ignore();                   // Clear newline character before reading strings
 
         switch (choice)
         {
@@ -285,7 +309,7 @@ int main()
             {
                 cout << "Playing next song: " << sq.getNextSong() << endl;
             }
-            catch (const out_of_range &e)
+            catch (const exception &e) // Catch both runtime_error and out_of_range
             {
                 cerr << e.what() << endl;
             }
@@ -300,7 +324,7 @@ int main()
                 sq.addNewSong(newSong);
                 cout << "New song added to the queue." << endl;
             }
-            catch (const overflow_error &e)
+            catch (const exception &e) // Catch both overflow_error and invalid_argument
             {
                 cerr << e.what() << endl;
             }
@@ -309,7 +333,6 @@ int main()
         case 3:
         {
             string songToRemove;
-            cin.ignore(); // Ignore leftover newline character from previous input
             cout << "Enter the name of the song to remove: ";
             getline(cin, songToRemove);
             try
